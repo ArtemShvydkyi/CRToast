@@ -1005,26 +1005,29 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
     if (self) {
         self.userInteractionEnabled = YES;
         self.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-
+        UIView *childsContainer = self;
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 80000
         UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
         UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
         blurView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
         [self addSubview:blurView];
+        childsContainer = blurView;
+#endif
 
         UIImageView *imageView = [[UIImageView alloc] initWithFrame:CGRectMake(18, 0, 13, 13)];
         imageView.userInteractionEnabled = NO;
         imageView.contentMode = UIViewContentModeCenter;
-        [blurView.contentView addSubview:imageView];
+        [childsContainer addSubview:imageView];
         self.imageView = imageView;
         
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.userInteractionEnabled = NO;
-        [blurView.contentView addSubview:label];
+        [childsContainer addSubview:label];
         self.label = label;
         
         UILabel *subtitleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
         subtitleLabel.userInteractionEnabled = NO;
-        [blurView.contentView addSubview:subtitleLabel];
+        [childsContainer addSubview:subtitleLabel];
         self.subtitleLabel = subtitleLabel;
         
         self.isAccessibilityElement = YES;
