@@ -1005,24 +1005,31 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
     if (self) {
         self.userInteractionEnabled = YES;
         self.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-        
-        UIImageView *imageView = [[UIImageView alloc] initWithFrame:CGRectZero];
+
+        UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
+        UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+        blurView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
+        [self addSubview:blurView];
+
+        UIImageView *imageView = [[UIImageView alloc] initWithFrame:CGRectMake(18, 0, 13, 13)];
         imageView.userInteractionEnabled = NO;
         imageView.contentMode = UIViewContentModeCenter;
-        [self addSubview:imageView];
+        [blurView.contentView addSubview:imageView];
         self.imageView = imageView;
         
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.userInteractionEnabled = NO;
-        [self addSubview:label];
+        [blurView.contentView addSubview:label];
         self.label = label;
         
         UILabel *subtitleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
         subtitleLabel.userInteractionEnabled = NO;
-        [self addSubview:subtitleLabel];
+        [blurView.contentView addSubview:subtitleLabel];
         self.subtitleLabel = subtitleLabel;
         
         self.isAccessibilityElement = YES;
+
+
     }
     return self;
 }
@@ -1031,27 +1038,22 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
     [super layoutSubviews];
     CGRect contentFrame = self.bounds;
     CGSize imageSize = self.imageView.image.size;
-    
+
     CGFloat statusBarYOffset = self.toast.displayUnderStatusBar ? (CRGetStatusBarHeight()+CRStatusBarViewUnderStatusBarYOffsetAdjustment) : 0;
     contentFrame.size.height = CGRectGetHeight(contentFrame) - statusBarYOffset;
-    
+
     self.backgroundView.frame = self.bounds;
-    self.imageView.frame = CGRectMake(0,
-                                      statusBarYOffset,
-                                      imageSize.width == 0 ?
-                                      0 :
-                                      CGRectGetHeight(contentFrame),
-                                      imageSize.height == 0 ?
-                                      0 :
-                                      CGRectGetHeight(contentFrame));
-    CGFloat x = imageSize.width == 0 ? kCRStatusBarViewNoImageLeftContentInset : CGRectGetMaxX(_imageView.frame);
+    CGFloat x = imageSize.width == 0 ? kCRStatusBarViewNoImageLeftContentInset : CGRectGetMaxX(_imageView.frame) + 6;
     CGFloat width = CGRectGetWidth(contentFrame)-x-kCRStatusBarViewNoImageRightContentInset;
-    
+
     if (self.toast.subtitleText == nil) {
-        self.label.frame = CGRectMake(x,
-                                      statusBarYOffset,
-                                      width,
-                                      CGRectGetHeight(contentFrame));
+        CGFloat height = MIN([self.toast.text boundingRectWithSize:CGSizeMake(width, self.toast.font.lineHeight * self.label.numberOfLines)
+                                                           options:NSStringDrawingUsesLineFragmentOrigin
+                                                        attributes:@{NSFontAttributeName : self.toast.font}
+                                                           context:nil].size.height,
+                CGRectGetHeight(contentFrame));
+        CGFloat offset = (CGRectGetHeight(contentFrame) - height)/2;
+        self.label.frame = CGRectMake(x, offset, width, height);
     } else {
         CGFloat height = MIN([self.toast.text boundingRectWithSize:CGSizeMake(width, MAXFLOAT)
                                                            options:NSStringDrawingUsesLineFragmentOrigin
@@ -1066,18 +1068,24 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
             subtitleHeight = (CGRectGetHeight(contentFrame) - (height))-10;
         }
         CGFloat offset = (CGRectGetHeight(contentFrame) - (height + subtitleHeight))/2;
-        
+
         self.label.frame = CGRectMake(x,
                                       offset+statusBarYOffset,
                                       CGRectGetWidth(contentFrame)-x-kCRStatusBarViewNoImageRightContentInset,
                                       height);
-        
-        
+
+
         self.subtitleLabel.frame = CGRectMake(x,
                                               height+offset+statusBarYOffset,
                                               CGRectGetWidth(contentFrame)-x-kCRStatusBarViewNoImageRightContentInset,
                                               subtitleHeight);
     }
+    CGRect newFrame = self.imageView.frame;
+    if (self.label.frame.size.height <= self.label.font.lineHeight)
+        newFrame.origin.y = self.label.frame.origin.y + (self.label.frame.size.height - self.imageView.frame.size.height)/2;
+    else
+        newFrame.origin.y = self.label.frame.origin.y + 2;
+    self.imageView.frame = newFrame;
 }
 
 #pragma mark - Overrides
@@ -1088,7 +1096,7 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
     _label.font = toast.font;
     _label.textColor = toast.textColor;
     _label.textAlignment = toast.textAlignment;
-    _label.numberOfLines = toast.textMaxNumberOfLines;
+    _label.numberOfLines = toast.maxNumberOfLines;
     if (toast.subtitleText != nil) {
         _subtitleLabel.text = toast.subtitleText;
         _subtitleLabel.font = toast.subtitleFont;
