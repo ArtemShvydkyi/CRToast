@@ -5,6 +5,7 @@
 //
 
 #import <QuartzCore/QuartzCore.h>
+#import <UIColor+Hex/UIColor+Hex.h>
 #import "CRToast.h"
 
 NSString *NSStringFromCRToastInteractionType(CRToastInteractionType interactionType) {
@@ -998,6 +999,8 @@ static CGFloat const kCRStatusBarViewNoImageRightContentInset = 10;
 
 static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
 
+static const int imageRightPadding = 6;
+
 @implementation CRToastView
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -1005,30 +1008,20 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
     if (self) {
         self.userInteractionEnabled = YES;
         self.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-        UIView *childsContainer = self;
-        if((floor(NSFoundationVersionNumber) > NSFoundationVersionNumber_iOS_7_1))
-        {
-            UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
-            UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-            blurView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
-            [self addSubview:blurView];
-            childsContainer = blurView;
-        }
-
-        UIImageView *imageView = [[UIImageView alloc] initWithFrame:CGRectMake(18, 0, 13, 13)];
+        UIImageView *imageView = [[UIImageView alloc] initWithFrame:CGRectMake(11, 0, 22, 22)];
         imageView.userInteractionEnabled = NO;
         imageView.contentMode = UIViewContentModeCenter;
-        [childsContainer addSubview:imageView];
+        [self addSubview:imageView];
         self.imageView = imageView;
 
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.userInteractionEnabled = NO;
-        [childsContainer addSubview:label];
+        [self addSubview:label];
         self.label = label;
 
         UILabel *subtitleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
         subtitleLabel.userInteractionEnabled = NO;
-        [childsContainer addSubview:subtitleLabel];
+        [self addSubview:subtitleLabel];
         self.subtitleLabel = subtitleLabel;
 
         self.isAccessibilityElement = YES;
@@ -1040,31 +1033,42 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
 
 - (void)layoutSubviews {
     [super layoutSubviews];
+
+    BOOL isIpad = (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad);
+
     CGRect contentFrame = self.bounds;
-    CGSize imageSize = self.imageView.image.size;
+    CGSize imageSize = self.imageView.bounds.size;
 
     CGFloat statusBarYOffset = self.toast.displayUnderStatusBar ? (CRGetStatusBarHeight()+CRStatusBarViewUnderStatusBarYOffsetAdjustment) : 0;
     contentFrame.size.height = CGRectGetHeight(contentFrame) - statusBarYOffset;
 
     self.backgroundView.frame = self.bounds;
-    CGFloat x = imageSize.width == 0 ? kCRStatusBarViewNoImageLeftContentInset : CGRectGetMaxX(_imageView.frame) + 6;
-    CGFloat width = CGRectGetWidth(contentFrame)-x-kCRStatusBarViewNoImageRightContentInset;
+    CGFloat x = CGRectGetMaxX(_imageView.frame) + imageRightPadding;
+    CGFloat textAreaMaxWidth = CGRectGetWidth(contentFrame)-x-kCRStatusBarViewNoImageRightContentInset;
 
     if (self.toast.subtitleText == nil) {
-        CGFloat height = MIN([self.toast.text boundingRectWithSize:CGSizeMake(width, self.toast.font.lineHeight * self.label.numberOfLines)
-                                                           options:NSStringDrawingUsesLineFragmentOrigin
-                                                        attributes:@{NSFontAttributeName : self.toast.font}
-                                                           context:nil].size.height,
-                CGRectGetHeight(contentFrame));
-        CGFloat offset = (CGRectGetHeight(contentFrame) - height)/2;
-        self.label.frame = CGRectMake(x, offset, width, height);
+        CGSize textSize = [self.toast.text boundingRectWithSize:CGSizeMake(textAreaMaxWidth, self.toast.font.lineHeight * self.label.numberOfLines)
+                                                        options:NSStringDrawingUsesLineFragmentOrigin
+                                                     attributes:@{NSFontAttributeName : self.toast.font}
+                                                        context:nil].size;
+        CGFloat textWidth;
+        if (!isIpad) {
+            textWidth = textAreaMaxWidth;
+        }
+        else {
+            textWidth =  MIN(textAreaMaxWidth, textSize.width);
+            x = (CGRectGetWidth(contentFrame) - (textWidth + imageSize.width + imageRightPadding))/2;
+        }
+        CGFloat textHeight = MIN(CGRectGetHeight(contentFrame), textSize.height);
+        CGFloat offset = (CGRectGetHeight(contentFrame) - textHeight)/2;
+        self.label.frame = CGRectMake(x, offset, textWidth, textHeight);
     } else {
-        CGFloat height = MIN([self.toast.text boundingRectWithSize:CGSizeMake(width, MAXFLOAT)
+        CGFloat height = MIN([self.toast.text boundingRectWithSize:CGSizeMake(textAreaMaxWidth, MAXFLOAT)
                                                            options:NSStringDrawingUsesLineFragmentOrigin
                                                         attributes:@{NSFontAttributeName : self.toast.font}
                                                            context:nil].size.height,
                              CGRectGetHeight(contentFrame));
-        CGFloat subtitleHeight = [self.toast.subtitleText boundingRectWithSize:CGSizeMake(width, MAXFLOAT)
+        CGFloat subtitleHeight = [self.toast.subtitleText boundingRectWithSize:CGSizeMake(textAreaMaxWidth, MAXFLOAT)
                                                                        options:NSStringDrawingUsesLineFragmentOrigin
                                                                     attributes:@{NSFontAttributeName : self.toast.subtitleFont }
                                                                        context:nil].size.height;
@@ -1085,10 +1089,14 @@ static CGFloat const CRStatusBarViewUnderStatusBarYOffsetAdjustment = -5;
                                               subtitleHeight);
     }
     CGRect newFrame = self.imageView.frame;
-    if (self.label.frame.size.height <= self.label.font.lineHeight)
-        newFrame.origin.y = self.label.frame.origin.y + (self.label.frame.size.height - self.imageView.frame.size.height)/2;
-    else
-        newFrame.origin.y = self.label.frame.origin.y + 2;
+    if (self.label.frame.size.height <= self.label.font.lineHeight) {
+        newFrame.origin.y = (self.frame.size.height - self.imageView.frame.size.height)/2;
+    }
+    else{
+        newFrame.origin.y = self.label.frame.origin.y - 2;
+    }
+
+    newFrame.origin.x = self.label.frame.origin.x - imageRightPadding - newFrame.size.width;
     self.imageView.frame = newFrame;
 }
 
