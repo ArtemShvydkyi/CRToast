@@ -1291,7 +1291,7 @@ typedef void (^CRToastAnimationStepBlock)(void);
         UIWindow *notificationWindow = [[CRToastWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
         notificationWindow.backgroundColor = [UIColor clearColor];
         notificationWindow.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        notificationWindow.windowLevel = UIWindowLevelStatusBar;
+        notificationWindow.windowLevel = UIWindowLevelAlert + 1;
         notificationWindow.rootViewController = [CRToastViewController new];
         notificationWindow.rootViewController.view.clipsToBounds = YES;
         self.notificationWindow = notificationWindow;
@@ -1440,7 +1440,7 @@ CRToastAnimationStepBlock CRToastOutwardAnimationsSetupBlock(CRToastManager *wea
     rootViewController.notification = notification;
     
     _notificationWindow.rootViewController.view.frame = containerFrame;
-    _notificationWindow.windowLevel = notification.displayUnderStatusBar ? UIWindowLevelNormal + 1 : UIWindowLevelStatusBar;
+    _notificationWindow.windowLevel = (notification.displayUnderStatusBar ? UIWindowLevelNormal : UIWindowLevelAlert) + 1;
     
     UIView *statusBarView = notification.statusBarView;
     statusBarView.frame = _notificationWindow.rootViewController.view.bounds;
